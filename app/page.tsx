@@ -68,19 +68,12 @@ const ChatApp = () => {
   const generateWelcomeMessage = (): string => {
     let message = `# Welcome to GEA Cyber Bot! 🤖
 
-I'm your AI-powered assistant for code quality and website performance analysis. I can help you:
+I'm your AI-powered code quality assistant integrated with SonarCloud. I can help you:
 
-## Code Analysis (SonarCloud)
 - 🔍 **Analyze code quality** for your GitHub repositories
 - 🐛 **Identify bugs and vulnerabilities**
 - 📊 **Review security hotspots**
 - 💡 **Get actionable recommendations**
-
-## Website Analysis (Lighthouse)
-- ⚡ **Measure website performance** (Core Web Vitals)
-- ♿ **Check accessibility** compliance
-- 🎯 **Evaluate SEO** best practices
-- 🛡️ **Review security** best practices
 
 ## Quick Actions
 
@@ -550,7 +543,7 @@ const sendMessage = async () => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-            placeholder="Analyze a GitHub repo or website (e.g., https://example.com)..."
+            placeholder="Type a message or paste a GitHub URL to analyze..."
           />
           <button
             className="bg-blue-500 hover:bg-blue-600 text-white p-3 rounded w-full sm:w-1/5"
