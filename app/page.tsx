@@ -23,18 +23,45 @@ const ChatApp = () => {
   const [activeRun, setActiveRun] = useState(false);
   const [typing, setTyping] = useState(false);
   const [availableRepos, setAvailableRepos] = useState<Array<{githubUrl: string; displayName: string}>>([]);
+  const [reposLoaded, setReposLoaded] = useState(false);
+  const [reposError, setReposError] = useState<string | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Fetch available repositories from config
   useEffect(() => {
-    fetch('/api/sonar/list-repos')
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.repos) {
-          setAvailableRepos(data.repos.filter((r: any) => r.configured));
+    const fetchRepos = async () => {
+      try {
+        console.log('[ChatApp] Fetching repositories from /api/sonar/list-repos');
+        const res = await fetch('/api/sonar/list-repos');
+
+        if (!res.ok) {
+          throw new Error(`Failed to fetch repositories: ${res.status} ${res.statusText}`);
         }
-      })
-      .catch(err => console.error('Failed to load repos:', err));
+
+        const data = await res.json();
+        console.log('[ChatApp] API Response:', data);
+
+        if (data.success && data.repos) {
+          const configuredRepos = data.repos.filter((r: any) => r.configured);
+          setAvailableRepos(configuredRepos);
+          console.log(`[ChatApp] Loaded ${configuredRepos.length} configured repositories`);
+
+          if (configuredRepos.length === 0) {
+            setReposError('No repositories marked as "configured: true" in sonar-repos.json');
+          }
+        } else {
+          throw new Error(data.error || 'Unknown error loading repositories');
+        }
+      } catch (err: any) {
+        const errorMsg = err.message || 'Failed to load repositories';
+        console.error('[ChatApp] Repository loading error:', errorMsg);
+        setReposError(errorMsg);
+      } finally {
+        setReposLoaded(true);
+      }
+    };
+
+    fetchRepos();
   }, []);
 
   // Generate welcome message with available repos
@@ -55,12 +82,33 @@ I'm your AI-powered code quality assistant integrated with SonarCloud. I can hel
 `;
 
     if (availableRepos.length > 0) {
-      message += `\n## Select from the available repositories\n\n`;
+      message += `\n## Available Repositories (${availableRepos.length})\n\n`;
       availableRepos.forEach((repo, index) => {
         message += `${index + 1}. [${repo.displayName}](${repo.githubUrl})\n`;
       });
+    } else if (reposError) {
+      message += `\n⚠️ **Configuration Issue**: ${reposError}\n\n`;
+      message += `**Troubleshooting Steps:**\n`;
+      message += `1. Ensure \`public/config/sonar-repos.json\` exists\n`;
+      message += `2. Set \`"configured": true\` for each repository\n`;
+      message += `3. Check browser console (F12) for detailed error logs\n\n`;
+      message += `**Expected JSON format:**\n`;
+      message += `\`\`\`json\n`;
+      message += `{\n`;
+      message += `  "repositories": [\n`;
+      message += `    {\n`;
+      message += `      "githubUrl": "https://github.com/owner/repo.git",\n`;
+      message += `      "sonarProjectKey": "owner_repo",\n`;
+      message += `      "displayName": "Your Repo",\n`;
+      message += `      "branch": "main",\n`;
+      message += `      "configured": true,\n`;
+      message += `      "lastSync": "2025-11-20T00:00:00Z"\n`;
+      message += `    }\n`;
+      message += `  ]\n`;
+      message += `}\n`;
+      message += `\`\`\`\n`;
     } else {
-      message += `\n⚠️ No repositories configured yet. Please add repositories to \`app/config/sonar-repos.json\`.\n`;
+      message += `\n⚠️ Loading repositories...\n`;
     }
 
     return message;
@@ -96,7 +144,7 @@ I'm your AI-powered code quality assistant integrated with SonarCloud. I can hel
     if (savedThreadId) {
       setThreadId(savedThreadId);
     }
-  }, [availableRepos]);
+  }, [reposLoaded, availableRepos, reposError]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
