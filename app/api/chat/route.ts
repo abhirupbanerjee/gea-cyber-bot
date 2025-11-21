@@ -146,34 +146,40 @@ export async function POST(request: NextRequest) {
                   delete normalizedArgs.include_issues;
                 }
 
-                // Route to appropriate endpoint
+                // Import route handlers directly to avoid HTTP calls
                 if (functionName === 'validate_github_repo') {
-                  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
-                                  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+                  // Import and call the validate-repo route handler directly
+                  const { POST: validateRepoHandler } = await import('@/app/api/sonar/validate-repo/route');
 
-                  const response = await fetch(`${baseUrl}/api/sonar/validate-repo`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(normalizedArgs)
-                  });
+                  // Create a mock NextRequest with the arguments
+                  const mockRequest = {
+                    json: async () => normalizedArgs
+                  } as NextRequest;
+
+                  const response = await validateRepoHandler(mockRequest);
                   output = await response.json();
+
+                  console.log('[Function Call] validate_github_repo result:', output);
                 } else if (functionName === 'get_code_analysis') {
-                  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
-                                  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+                  // Import and call the get-analysis route handler directly
+                  const { POST: getAnalysisHandler } = await import('@/app/api/sonar/get-analysis/route');
 
-                  const response = await fetch(`${baseUrl}/api/sonar/get-analysis`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(normalizedArgs)
-                  });
+                  // Create a mock NextRequest with the arguments
+                  const mockRequest = {
+                    json: async () => normalizedArgs
+                  } as NextRequest;
+
+                  const response = await getAnalysisHandler(mockRequest);
                   output = await response.json();
+
+                  console.log('[Function Call] get_code_analysis result:', output);
                 } else {
                   output = { error: `Unknown function: ${functionName}` };
                 }
 
-                console.log('[Function Call] Result:', { functionName, success: !output.error });
+                console.log('[Function Call] Success:', { functionName, hasError: !!output.error });
               } catch (error: any) {
-                console.error('[Function Call] Error:', { functionName, error: error.message });
+                console.error('[Function Call] Error:', { functionName, error: error.message, stack: error.stack });
                 output = { error: error.message || 'Function call failed' };
               }
 
