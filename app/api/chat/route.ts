@@ -1,6 +1,8 @@
 // app/api/chat/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
+import { executeFunctionCall } from '@/app/lib/openai/function-registry';
+import { normalizeApiArgs } from '@/app/lib/utils/normalize-args';
 
 // Server-side environment variables (no NEXT_PUBLIC_ prefix)
 const ASSISTANT_ID = process.env.OPENAI_ASSISTANT_ID;
@@ -136,46 +138,10 @@ export async function POST(request: NextRequest) {
 
               try {
                 // Normalize parameter names (snake_case to camelCase for internal API)
-                const normalizedArgs = { ...functionArgs };
-                if (normalizedArgs.github_url) {
-                  normalizedArgs.githubUrl = normalizedArgs.github_url;
-                  delete normalizedArgs.github_url;
-                }
-                if (normalizedArgs.include_issues !== undefined) {
-                  normalizedArgs.includeIssues = normalizedArgs.include_issues;
-                  delete normalizedArgs.include_issues;
-                }
+                const normalizedArgs = normalizeApiArgs(functionArgs);
 
-                // Import route handlers directly to avoid HTTP calls
-                if (functionName === 'validate_github_repo') {
-                  // Import and call the validate-repo route handler directly
-                  const { POST: validateRepoHandler } = await import('@/app/api/sonar/validate-repo/route');
-
-                  // Create a mock NextRequest with the arguments
-                  const mockRequest = {
-                    json: async () => normalizedArgs
-                  } as NextRequest;
-
-                  const response = await validateRepoHandler(mockRequest);
-                  output = await response.json();
-
-                  console.log('[Function Call] validate_github_repo result:', output);
-                } else if (functionName === 'get_code_analysis') {
-                  // Import and call the get-analysis route handler directly
-                  const { POST: getAnalysisHandler } = await import('@/app/api/sonar/get-analysis/route');
-
-                  // Create a mock NextRequest with the arguments
-                  const mockRequest = {
-                    json: async () => normalizedArgs
-                  } as NextRequest;
-
-                  const response = await getAnalysisHandler(mockRequest);
-                  output = await response.json();
-
-                  console.log('[Function Call] get_code_analysis result:', output);
-                } else {
-                  output = { error: `Unknown function: ${functionName}` };
-                }
+                // Execute function call using registry
+                output = await executeFunctionCall(functionName, normalizedArgs);
 
                 console.log('[Function Call] Success:', { functionName, hasError: !!output.error });
               } catch (error: any) {
