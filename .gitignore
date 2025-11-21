@@ -149,7 +149,7 @@ dist
 
 # Gatsby files
 .cache/
-public
+# public
 
 # vuepress build output
 .vuepress/dist
@@ -197,6 +197,7 @@ temp/
 # Local configuration files that might contain secrets
 config/local.json
 config/secrets.json
+!config/sonar-repos.json
 
 # Database
 *.db
