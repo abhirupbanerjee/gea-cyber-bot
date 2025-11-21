@@ -14,7 +14,7 @@ export function loadConfiguredRepos(): ConfiguredRepo[] {
   }
 
   try {
-    const configPath = path.join(process.cwd(), 'app/config/sonar-repos.json');
+    const configPath = path.join(process.cwd(), 'public/config/sonar-repos.json');
     const fileContent = fs.readFileSync(configPath, 'utf-8');
     const config: SonarRepoConfig = JSON.parse(fileContent);
 
