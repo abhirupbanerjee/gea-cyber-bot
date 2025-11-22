@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import { motion } from "framer-motion";
 import remarkGfm from "remark-gfm";
+import { User, Bot, Copy, Check, ExternalLink, Send, Trash2, ClipboardCopy, Shield } from "lucide-react";
 
 // Define Message type
 interface Message {
@@ -22,6 +23,8 @@ const ChatApp = () => {
   const [loading, setLoading] = useState(false);
   const [activeRun, setActiveRun] = useState(false);
   const [typing, setTyping] = useState(false);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [showWelcome, setShowWelcome] = useState(true);
   const [availableRepos, setAvailableRepos] = useState<Array<{githubUrl: string; displayName: string}>>([]);
   const [reposLoaded, setReposLoaded] = useState(false);
   const [reposError, setReposError] = useState<string | null>(null);
@@ -64,56 +67,6 @@ const ChatApp = () => {
     fetchRepos();
   }, []);
 
-  // Generate welcome message with available repos
-  const generateWelcomeMessage = (): string => {
-    let message = `# Welcome to GEA Cyber Bot! 🤖
-
-I'm your AI-powered code quality assistant integrated with SonarCloud. I can help you:
-
-- 🔍 **Analyze code quality** for your GitHub repositories
-- 🐛 **Identify bugs and vulnerabilities**
-- 📊 **Review security hotspots**
-- 💡 **Get actionable recommendations**
-
-## Quick Actions
-
-- [📖 What can the Cyber Bot do?](#what-capabilities)
-- [➕ How do I add a new repository?](#add-repository)
-`;
-
-    if (availableRepos.length > 0) {
-      message += `\n## Available Repositories (${availableRepos.length})\n\n`;
-      availableRepos.forEach((repo, index) => {
-        message += `${index + 1}. [${repo.displayName}](${repo.githubUrl})\n`;
-      });
-    } else if (reposError) {
-      message += `\n⚠️ **Configuration Issue**: ${reposError}\n\n`;
-      message += `**Troubleshooting Steps:**\n`;
-      message += `1. Ensure \`public/config/sonar-repos.json\` exists\n`;
-      message += `2. Set \`"configured": true\` for each repository\n`;
-      message += `3. Check browser console (F12) for detailed error logs\n\n`;
-      message += `**Expected JSON format:**\n`;
-      message += `\`\`\`json\n`;
-      message += `{\n`;
-      message += `  "repositories": [\n`;
-      message += `    {\n`;
-      message += `      "githubUrl": "https://github.com/owner/repo.git",\n`;
-      message += `      "sonarProjectKey": "owner_repo",\n`;
-      message += `      "displayName": "Your Repo",\n`;
-      message += `      "branch": "main",\n`;
-      message += `      "configured": true,\n`;
-      message += `      "lastSync": "2025-11-20T00:00:00Z"\n`;
-      message += `    }\n`;
-      message += `  ]\n`;
-      message += `}\n`;
-      message += `\`\`\`\n`;
-    } else {
-      message += `\n⚠️ Loading repositories...\n`;
-    }
-
-    return message;
-  };
-
   // Load chat history from localStorage on component mount
   useEffect(() => {
     const savedMessages = localStorage.getItem("chatHistory");
@@ -121,30 +74,21 @@ I'm your AI-powered code quality assistant integrated with SonarCloud. I can hel
 
     if (savedMessages) {
       try {
-        const parsed = JSON.parse(savedMessages);
-        setMessages(parsed);
+        const parsedMessages = JSON.parse(savedMessages);
+        setMessages(parsedMessages);
+        // Hide welcome if there are existing messages
+        if (parsedMessages.length > 0) {
+          setShowWelcome(false);
+        }
       } catch (error) {
         console.error("Error parsing saved messages:", error);
-        // Show welcome message if no valid saved messages
-        setMessages([{
-          role: "assistant",
-          content: generateWelcomeMessage(),
-          timestamp: new Date().toLocaleString()
-        }]);
       }
-    } else {
-      // Show welcome message on first load
-      setMessages([{
-        role: "assistant",
-        content: generateWelcomeMessage(),
-        timestamp: new Date().toLocaleString()
-      }]);
     }
 
     if (savedThreadId) {
       setThreadId(savedThreadId);
     }
-  }, [reposLoaded, availableRepos, reposError]);
+  }, [reposLoaded]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -161,98 +105,108 @@ I'm your AI-powered code quality assistant integrated with SonarCloud. I can hel
   }, [messages, threadId]);
 
   // Function to send user message and receive assistant response
-// Replace your sendMessage function with this version
-const sendMessage = async () => {
-  if (activeRun || !input.trim()) return;
+  const sendMessage = async () => {
+    if (activeRun || !input.trim()) return;
 
-  setActiveRun(true);
-  setLoading(true);
-
-  const userMessage = {
-    role: "user",
-    content: input,
-    timestamp: new Date().toLocaleString(),
-  };
-  setMessages((prev) => [...prev, userMessage]);
-  const userInput = input;
-  setInput("");
-
-  try {
-    setTyping(true);
-
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        message: userInput,
-        threadId: threadId,
-      }),
-    });
-
-    // Check if response is ok first
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    // Hide welcome screen on first message
+    if (showWelcome) {
+      setShowWelcome(false);
     }
 
-    // Get the response as text first to check if it's empty
-    const responseText = await response.text();
-    let data;
+    setActiveRun(true);
+    setLoading(true);
+
+    const userMessage = {
+      role: "user",
+      content: input,
+      timestamp: new Date().toLocaleString(),
+    };
+    setMessages((prev) => [...prev, userMessage]);
+
+    const inputToSend = input;
+    setInput("");
+
     try {
-      data = JSON.parse(responseText);
-    } catch (parseError) {
-      console.error('Failed to parse JSON response:', responseText);
-      throw new Error('Invalid JSON response from server');
+      setTyping(true);
+
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: inputToSend,
+          threadId: threadId,
+        }),
+      });
+
+      // Check if response is ok first
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // Get the response as text first to check if it's empty
+      const responseText = await response.text();
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Failed to parse JSON response:', responseText);
+        throw new Error('Invalid JSON response from server');
+      }
+
+      // Check if the parsed data has an error
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // Update thread ID if we got a new one
+      if (data.threadId && data.threadId !== threadId) {
+        setThreadId(data.threadId);
+      }
+
+      // Add assistant response to messages
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: data.reply || "No response received",
+          timestamp: new Date().toLocaleString()
+        },
+      ]);
+
+    } catch (error: any) {
+      console.error("Error:", error);
+
+      let errorMessage = "Unable to reach assistant.";
+
+      if (error.message) {
+        errorMessage = error.message;
+      }
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `Error: ${errorMessage}`,
+          timestamp: new Date().toLocaleString(),
+        },
+      ]);
+    } finally {
+      setTyping(false);
+      setLoading(false);
+      setActiveRun(false);
     }
-
-    // Check if the parsed data has an error
-    if (data.error) {
-      throw new Error(data.error);
-    }
-
-    // Update thread ID if we got a new one
-    if (data.threadId && data.threadId !== threadId) {
-      setThreadId(data.threadId);
-    }
-
-    // Add assistant response to messages
-    setMessages((prev) => [
-      ...prev,
-      { 
-        role: "assistant", 
-        content: data.reply || "No response received", 
-        timestamp: new Date().toLocaleString() 
-      },
-    ]);
-
-  } catch (error: any) {
-    console.error("Error:", error);
-    
-    let errorMessage = "Unable to reach assistant.";
-    
-    if (error.message) {
-      errorMessage = error.message;
-    }
-
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: "assistant",
-        content: `Error: ${errorMessage}`,
-        timestamp: new Date().toLocaleString(),
-      },
-    ]);
-  } finally {
-    setTyping(false);
-    setLoading(false);
-    setActiveRun(false);
-  }
-};
+  };
 
   // Handle repository link clicks
   const handleRepoLinkClick = async (url: string) => {
     if (activeRun || !url.trim()) return;
+
+    // Hide welcome screen
+    if (showWelcome) {
+      setShowWelcome(false);
+    }
 
     setActiveRun(true);
     setLoading(true);
@@ -332,6 +286,17 @@ const sendMessage = async () => {
     }
   };
 
+  // Copy individual message to clipboard
+  const copyMessageToClipboard = async (content: string, index: number) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedIndex(index);
+      setTimeout(() => setCopiedIndex(null), 2000); // Show checkmark for 2s
+    } catch (err) {
+      console.error("Failed to copy message: ", err);
+    }
+  };
+
   // Copy chat to clipboard
   const copyChatToClipboard = async () => {
     const chatText = messages
@@ -355,225 +320,323 @@ const sendMessage = async () => {
       </header>
 
       {/* Chat Container */}
-      <div className="flex-grow w-full max-w-4xl mx-auto flex flex-col p-4">
+      <div className="flex-1 w-full max-w-4xl mx-auto flex flex-col p-4 overflow-hidden">
         <div
           ref={chatContainerRef}
-          className="flex-grow overflow-y-auto border p-3 space-y-4 bg-white shadow rounded-lg h-[65vh] sm:h-[70vh]"
+          className="flex-1 overflow-y-auto border p-3 bg-white shadow rounded-lg"
         >
-          {messages.map((msg, index) => (
-            <motion.div key={index}>
-              <p className="font-bold mb-1">
-                {msg.role === "user" ? "You" : "GEA Cyber Bot"}{" "}
-                {msg.timestamp && (
-                  <span className="text-xs text-gray-500">({msg.timestamp})</span>
-                )}
-              </p>
-              <div
-                className={`p-3 rounded-md ${
-                  msg.role === "user"
-                    ? "bg-gray-200 text-black"
-                    : "bg-white text-black border"
-                }`}
+          <div className="space-y-4">
+            {/* Welcome Screen */}
+            {showWelcome && messages.length === 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="flex flex-col items-center justify-center h-full p-6"
               >
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    a: ({ href, children, ...props }) => {
-                      // Check if this is a GitHub URL from our repo list
-                      const isRepoLink = availableRepos.some(repo => repo.githubUrl === href);
+                {/* Welcome Icon */}
+                <div className="mb-6">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center shadow-lg">
+                    <Shield className="w-12 h-12 text-white" />
+                  </div>
+                </div>
 
-                      // Check if this is a quick action link
-                      const isQuickAction = href === '#what-capabilities' || href === '#add-repository';
+                {/* Welcome Message */}
+                <div className="text-center max-w-2xl mb-8">
+                  <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
+                    Welcome to GEA Cyber Bot
+                  </h2>
+                  <p className="text-gray-600 text-lg mb-6">
+                    I'm your AI-powered assistant for code quality and security analysis
+                  </p>
+                </div>
 
-                      if (isRepoLink && href) {
-                        return (
-                          <a
-                            href="#"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              handleRepoLinkClick(href);
-                            }}
-                            style={{
-                              color: "#2563eb",
-                              textDecoration: "underline",
-                              cursor: "pointer",
-                              fontWeight: "600"
-                            }}
-                            {...props}
-                          >
-                            {children}
-                          </a>
-                        );
-                      }
-
-                      if (isQuickAction && href) {
-                        return (
-                          <a
-                            href="#"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              const message = href === '#what-capabilities'
-                                ? 'What can the Cyber Bot do?'
-                                : 'How do I add a new repository?';
-                              handleRepoLinkClick(message);
-                            }}
-                            style={{
-                              color: "#2563eb",
-                              textDecoration: "underline",
-                              cursor: "pointer",
-                              fontWeight: "600"
-                            }}
-                            {...props}
-                          >
-                            {children}
-                          </a>
-                        );
-                      }
-
-                      // Regular link
-                      return (
-                        <a
-                          href={href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ color: "#2563eb", textDecoration: "underline" }}
-                          {...props}
+                {/* Repository Cards */}
+                {reposLoaded && !reposError && availableRepos.length > 0 && (
+                  <div className="w-full max-w-3xl mb-8">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">
+                      Available Repositories ({availableRepos.length})
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {availableRepos.map((repo, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => handleRepoLinkClick(repo.githubUrl)}
+                          className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-all text-left group"
                         >
-                          {children}
-                        </a>
-                      );
-                    },
-                    h1: ({ ...props }) => (
-                      <h1 style={{ fontFamily: "'Segoe UI', sans-serif", fontSize: "1.75rem", fontWeight: "bold", margin: "1rem 0", borderBottom: "2px solid #e5e7eb", paddingBottom: "0.5rem" }} {...props} />
-                    ),
-                    h2: ({ ...props }) => (
-                      <h2 style={{ fontFamily: "'Segoe UI', sans-serif", fontSize: "1.5rem", fontWeight: "bold", margin: "1rem 0", color: "#1f2937" }} {...props} />
-                    ),
-                    h3: ({ ...props }) => (
-                      <h3 style={{ fontFamily: "'Segoe UI', sans-serif", fontSize: "1.25rem", fontWeight: "bold", margin: "0.75rem 0", color: "#374151" }} {...props} />
-                    ),
-                    code: ({ className, children, ...props }: any) => {
-                      const isCodeBlock = className?.includes('language-');
-                      return isCodeBlock ? (
-                        <code
-                          className={className}
-                          style={{
-                            display: "block",
-                            fontFamily: "'Consolas', 'Monaco', monospace",
-                            background: "#1f2937",
-                            color: "#f9fafb",
-                            padding: "1rem",
-                            borderRadius: "8px",
-                            overflowX: "auto",
-                            marginBottom: "1rem",
-                            fontSize: "0.875rem",
-                            lineHeight: "1.5"
-                          }}
-                          {...props}
-                        >
-                          {children}
-                        </code>
-                      ) : (
-                        <code
-                          style={{
-                            fontFamily: "'Consolas', 'Monaco', monospace",
-                            background: "#fee2e2",
-                            color: "#991b1b",
-                            padding: "0.2rem 0.4rem",
-                            borderRadius: "4px",
-                            fontSize: "0.875rem"
-                          }}
-                          {...props}
-                        >
-                          {children}
-                        </code>
-                      );
-                    },
-                    p: ({ node, ...props }) => (
-                      <p style={{ marginBottom: "0.75rem", lineHeight: "1.6", fontFamily: "'Segoe UI', sans-serif", fontSize: "16px" }} {...props} />
-                    ),
-                    ul: ({ node, ...props }) => (
-                      <ul style={{ listStyleType: "disc", paddingLeft: "1.5rem", marginBottom: "1rem" }} {...props} />
-                    ),
-                    ol: ({ node, ...props }) => (
-                      <ol style={{ listStyleType: "decimal", paddingLeft: "1.5rem", marginBottom: "1rem" }} {...props} />
-                    ),
-                    li: ({ node, ...props }) => (
-                      <li style={{ marginBottom: "0.4rem", lineHeight: "1.5" }} {...props} />
-                    ),
-                    table: ({ node, ...props }) => (
-                      <div style={{ overflowX: "auto", marginBottom: "1rem" }}>
-                        <table style={{ borderCollapse: "collapse", width: "100%", minWidth: "400px" }} {...props} />
-                      </div>
-                    ),
-                    th: ({ node, ...props }) => (
-                      <th style={{ border: "1px solid #d1d5db", background: "#f3f4f6", padding: "10px", textAlign: "left", fontWeight: "600", fontSize: "0.875rem" }} {...props} />
-                    ),
-                    td: ({ node, ...props }) => (
-                      <td style={{ border: "1px solid #d1d5db", padding: "10px", textAlign: "left", fontSize: "0.875rem" }} {...props} />
-                    ),
-                    blockquote: ({ node, ...props }) => (
-                      <blockquote style={{ borderLeft: "4px solid #3b82f6", paddingLeft: "1rem", marginLeft: "0", marginBottom: "1rem", color: "#4b5563", fontStyle: "italic" }} {...props} />
-                    ),
-                    strong: ({ node, ...props }) => (
-                      <strong style={{ fontWeight: "700", color: "#111827" }} {...props} />
-                    ),
-                    hr: ({ node, ...props }) => (
-                      <hr style={{ border: "none", borderTop: "1px solid #e5e7eb", margin: "1.5rem 0" }} {...props} />
-                    ),
-                  }}
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+                              <Shield className="w-5 h-5 text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <h4 className="font-bold text-gray-900 text-base mb-1 group-hover:text-blue-700 transition-colors">
+                                {repo.displayName}
+                              </h4>
+                              <p className="text-xs text-gray-600 truncate">
+                                {repo.githubUrl}
+                              </p>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Error Message */}
+                {reposError && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-w-2xl mb-6">
+                    <p className="text-red-800 text-sm">
+                      <strong>⚠️ Configuration Issue:</strong> {reposError}
+                    </p>
+                  </div>
+                )}
+
+                {/* Or Start Typing */}
+                <p className="text-gray-500 text-sm">
+                  Or type your question below to get started
+                </p>
+              </motion.div>
+            )}
+
+            {/* Messages */}
+            {messages.map((msg, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="group"
+              >
+                {/* Message Header with Avatar */}
+                <div className="flex items-center gap-2 mb-2">
+                  {/* Avatar */}
+                  <div
+                    className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                      msg.role === "user"
+                        ? "bg-blue-600"
+                        : "bg-gradient-to-br from-blue-600 to-cyan-600"
+                    }`}
+                  >
+                    {msg.role === "user" ? (
+                      <User className="w-5 h-5 text-white" />
+                    ) : (
+                      <Bot className="w-5 h-5 text-white" />
+                    )}
+                  </div>
+
+                  {/* Name and Timestamp */}
+                  <div className="flex-grow flex items-center justify-between">
+                    <span className="font-semibold text-gray-900">
+                      {msg.role === "user" ? "You" : "GEA Cyber Bot"}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {msg.timestamp && (
+                        <span className="text-xs text-gray-500">{msg.timestamp}</span>
+                      )}
+                      {/* Copy Button - Shows on hover */}
+                      <button
+                        onClick={() => copyMessageToClipboard(msg.content, index)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-gray-100 rounded"
+                        aria-label="Copy message"
+                      >
+                        {copiedIndex === index ? (
+                          <Check className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <Copy className="w-4 h-4 text-gray-600" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Message Content */}
+                <div
+                  className={`p-4 rounded-lg ml-10 ${
+                    msg.role === "user"
+                      ? "bg-blue-50 border border-blue-100"
+                      : "bg-white border border-gray-200 shadow-sm"
+                  }`}
                 >
-                  {msg.content}
-                </ReactMarkdown>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      a: ({ href, children, ...props }) => {
+                        // Check if this is a GitHub URL from our repo list
+                        const isRepoLink = availableRepos.some(repo => repo.githubUrl === href);
+
+                        if (isRepoLink && href) {
+                          return (
+                            <a
+                              href="#"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                handleRepoLinkClick(href);
+                              }}
+                              className="text-blue-600 hover:text-blue-800 underline font-semibold cursor-pointer"
+                              {...props}
+                            >
+                              {children}
+                            </a>
+                          );
+                        }
+
+                        // Regular external link
+                        return (
+                          <a
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 underline inline-flex items-center gap-1 group/link"
+                            {...props}
+                          >
+                            {children}
+                            <ExternalLink className="w-3 h-3 opacity-0 group-hover/link:opacity-100 transition-opacity" />
+                          </a>
+                        );
+                      },
+                      h1: ({ ...props }) => (
+                        <h1 className="text-2xl font-bold mb-3 mt-4 first:mt-0 text-gray-900" {...props} />
+                      ),
+                      h2: ({ ...props }) => (
+                        <h2 className="text-xl font-bold mb-3 mt-3 first:mt-0 text-gray-900" {...props} />
+                      ),
+                      h3: ({ ...props }) => (
+                        <h3 className="text-lg font-semibold mb-2 mt-3 first:mt-0 text-gray-900" {...props} />
+                      ),
+                      h4: ({ ...props }) => (
+                        <h4 className="text-base font-semibold mb-2 mt-2 first:mt-0 text-gray-900" {...props} />
+                      ),
+                      code: ({ node, inline, className, children, ...props }: any) => {
+                        // CRITICAL FIX: Use inline prop instead of className check
+                        if (inline) {
+                          return (
+                            <code className="bg-gray-100 text-red-600 px-1.5 py-0.5 rounded text-sm font-mono" {...props}>
+                              {children}
+                            </code>
+                          );
+                        }
+                        // Block code
+                        return (
+                          <code className="block bg-gray-900 text-gray-100 p-3 rounded-lg overflow-x-auto text-sm font-mono my-2" {...props}>
+                            {children}
+                          </code>
+                        );
+                      },
+                      p: ({ ...props }) => (
+                        <p className="mb-3 leading-relaxed text-gray-800 last:mb-0" {...props} />
+                      ),
+                      ul: ({ ...props }) => (
+                        <ul className="list-disc pl-6 mb-3 space-y-1" {...props} />
+                      ),
+                      ol: ({ ...props }) => (
+                        <ol className="list-decimal pl-6 mb-3 space-y-1" {...props} />
+                      ),
+                      li: ({ ...props }) => (
+                        <li className="text-gray-800 leading-relaxed" {...props} />
+                      ),
+                      table: ({ ...props }) => (
+                        <div className="overflow-x-auto my-3">
+                          <table className="min-w-full border-collapse border border-gray-300" {...props} />
+                        </div>
+                      ),
+                      thead: ({ ...props }) => (
+                        <thead {...props} />
+                      ),
+                      tbody: ({ ...props }) => (
+                        <tbody {...props} />
+                      ),
+                      th: ({ ...props }) => (
+                        <th className="border border-gray-300 bg-gray-100 px-4 py-2 text-left font-semibold" {...props} />
+                      ),
+                      td: ({ ...props }) => (
+                        <td className="border border-gray-300 px-4 py-2" {...props} />
+                      ),
+                      blockquote: ({ ...props }) => (
+                        <blockquote className="border-l-4 border-gray-300 pl-4 py-2 my-3 italic text-gray-700 bg-gray-50 rounded-r" {...props} />
+                      ),
+                      strong: ({ ...props }) => (
+                        <strong className="font-bold text-gray-900" {...props} />
+                      ),
+                      hr: ({ ...props }) => (
+                        <hr className="my-4 border-gray-300" {...props} />
+                      ),
+                    }}
+                  >
+                    {msg.content}
+                  </ReactMarkdown>
+                </div>
+              </motion.div>
+            ))}
+            {/* Typing Indicator */}
+            {typing && (
+              <div className="flex items-center gap-2 text-gray-500 italic p-2">
+                <div className="flex gap-1">
+                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                </div>
+                <span>Assistant is typing...</span>
               </div>
-            </motion.div>
-          ))}
-          {/* Typing Indicator */}
-          {typing && (
-            <div className="text-gray-500 italic text-center p-2">Assistant is typing...</div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
       {/* Input & Controls */}
-      <div className="w-full max-w-4xl mx-auto p-4 flex flex-col gap-2">
-        <div className="flex flex-col sm:flex-row items-center gap-2">
+      <div className="w-full max-w-4xl mx-auto p-4 flex flex-col gap-3">
+        {/* Input Row */}
+        <div className="flex flex-col sm:flex-row items-stretch gap-2">
           <input
-            className="border rounded p-3 w-full sm:w-4/5"
+            className="flex-1 border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 rounded-lg px-4 py-3 outline-none transition-all"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+            onKeyDown={(e) => e.key === "Enter" && !loading && sendMessage()}
             placeholder="Type a message or paste a GitHub URL to analyze..."
+            disabled={loading}
           />
           <button
-            className="bg-blue-500 hover:bg-blue-600 text-white p-3 rounded w-full sm:w-1/5"
+            className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow-md sm:min-w-[120px]"
             onClick={sendMessage}
             disabled={loading}
           >
-            {loading ? "..." : "Send"}
+            {loading ? (
+              <>
+                <span className="animate-spin">⏳</span>
+                <span>Sending...</span>
+              </>
+            ) : (
+              <>
+                <Send className="w-4 h-4" />
+                <span>Send</span>
+              </>
+            )}
           </button>
         </div>
+
+        {/* Action Buttons Row */}
         <div className="flex flex-col sm:flex-row gap-2">
           <button
-            className="bg-yellow-500 hover:bg-yellow-600 text-white p-3 rounded w-full"
+            className="flex-1 bg-white hover:bg-gray-50 border-2 border-gray-300 hover:border-gray-400 text-gray-700 px-4 py-2.5 rounded-lg font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={copyChatToClipboard}
+            disabled={messages.length === 0}
           >
-            Copy Chat
+            <ClipboardCopy className="w-4 h-4" />
+            <span>Copy Chat</span>
           </button>
           <button
-            className="bg-red-400 hover:bg-red-500 text-white p-3 rounded w-full"
+            className="flex-1 bg-white hover:bg-red-50 border-2 border-gray-300 hover:border-red-400 text-gray-700 hover:text-red-600 px-4 py-2.5 rounded-lg font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => {
-              setMessages([{
-                role: "assistant",
-                content: generateWelcomeMessage(),
-                timestamp: new Date().toLocaleString()
-              }]);
+              setMessages([]);
               setThreadId(null);
+              setShowWelcome(true);
               localStorage.removeItem("threadId");
               localStorage.removeItem("chatHistory");
             }}
+            disabled={messages.length === 0}
           >
-            Clear Chat
+            <Trash2 className="w-4 h-4" />
+            <span>Clear Chat</span>
           </button>
         </div>
       </div>
