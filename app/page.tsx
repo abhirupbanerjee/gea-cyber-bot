@@ -351,6 +351,37 @@ const ChatApp = () => {
                   </p>
                 </div>
 
+                {/* Quick Actions */}
+                <div className="w-full max-w-2xl mb-8">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">
+                    Quick Actions
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      onClick={() => {
+                        setInput("What can the Cyber Bot do?");
+                        setShowWelcome(false);
+                      }}
+                      className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-all text-left group"
+                    >
+                      <p className="text-blue-700 font-medium group-hover:text-blue-800">
+                        📖 What can the Cyber Bot do?
+                      </p>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setInput("How do I add a new repository?");
+                        setShowWelcome(false);
+                      }}
+                      className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-all text-left group"
+                    >
+                      <p className="text-blue-700 font-medium group-hover:text-blue-800">
+                        ➕ How do I add a new repository?
+                      </p>
+                    </button>
+                  </div>
+                </div>
+
                 {/* Repository Cards */}
                 {reposLoaded && !reposError && availableRepos.length > 0 && (
                   <div className="w-full max-w-3xl mb-8">
