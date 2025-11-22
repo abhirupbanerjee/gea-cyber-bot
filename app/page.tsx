@@ -362,9 +362,9 @@ const ChatApp = () => {
                         setInput("What can the Cyber Bot do?");
                         setShowWelcome(false);
                       }}
-                      className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-all text-left group"
+                      className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-all text-left group"
                     >
-                      <p className="text-blue-700 font-medium group-hover:text-blue-800">
+                      <p className="text-purple-700 font-medium group-hover:text-purple-800">
                         📖 What can the Cyber Bot do?
                       </p>
                     </button>
@@ -373,9 +373,9 @@ const ChatApp = () => {
                         setInput("How do I add a new repository?");
                         setShowWelcome(false);
                       }}
-                      className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-all text-left group"
+                      className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-all text-left group"
                     >
-                      <p className="text-blue-700 font-medium group-hover:text-blue-800">
+                      <p className="text-purple-700 font-medium group-hover:text-purple-800">
                         ➕ How do I add a new repository?
                       </p>
                     </button>
@@ -388,28 +388,33 @@ const ChatApp = () => {
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">
                       Available Repositories ({availableRepos.length})
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {availableRepos.map((repo, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => handleRepoLinkClick(repo.githubUrl)}
-                          className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-all text-left group"
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
-                              <Shield className="w-5 h-5 text-white" />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {availableRepos.map((repo, idx) => {
+                        // Remove "https://github.com/abhirupbanerjee/" from URL display
+                        const cleanUrl = repo.githubUrl.replace('https://github.com/abhirupbanerjee/', '');
+
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => handleRepoLinkClick(repo.githubUrl)}
+                            className="bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-all text-left group"
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center flex-shrink-0">
+                                <span className="text-white font-bold text-lg">{idx + 1}</span>
+                              </div>
+                              <div className="flex-1">
+                                <h4 className="font-bold text-gray-900 text-base mb-1 group-hover:text-emerald-700 transition-colors">
+                                  {repo.displayName}
+                                </h4>
+                                <p className="text-xs text-gray-600 truncate">
+                                  {cleanUrl}
+                                </p>
+                              </div>
                             </div>
-                            <div className="flex-1">
-                              <h4 className="font-bold text-gray-900 text-base mb-1 group-hover:text-blue-700 transition-colors">
-                                {repo.displayName}
-                              </h4>
-                              <p className="text-xs text-gray-600 truncate">
-                                {repo.githubUrl}
-                              </p>
-                            </div>
-                          </div>
-                        </button>
-                      ))}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
