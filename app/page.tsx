@@ -362,9 +362,9 @@ const ChatApp = () => {
                         setInput("What can the Cyber Bot do?");
                         setShowWelcome(false);
                       }}
-                      className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-all text-left group"
+                      className="bg-gray-50 border border-gray-300 rounded-lg p-4 shadow-sm hover:shadow-md hover:bg-gray-100 transition-all text-left group"
                     >
-                      <p className="text-purple-700 font-medium group-hover:text-purple-800">
+                      <p className="text-gray-700 font-medium group-hover:text-gray-900">
                         📖 What can the Cyber Bot do?
                       </p>
                     </button>
@@ -373,9 +373,9 @@ const ChatApp = () => {
                         setInput("How do I add a new repository?");
                         setShowWelcome(false);
                       }}
-                      className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-all text-left group"
+                      className="bg-gray-50 border border-gray-300 rounded-lg p-4 shadow-sm hover:shadow-md hover:bg-gray-100 transition-all text-left group"
                     >
-                      <p className="text-purple-700 font-medium group-hover:text-purple-800">
+                      <p className="text-gray-700 font-medium group-hover:text-gray-900">
                         ➕ How do I add a new repository?
                       </p>
                     </button>
@@ -397,14 +397,14 @@ const ChatApp = () => {
                           <button
                             key={idx}
                             onClick={() => handleRepoLinkClick(repo.githubUrl)}
-                            className="bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-all text-left group"
+                            className="bg-sky-100 border border-gray-300 rounded-lg p-4 shadow-sm hover:shadow-md hover:bg-sky-200 transition-all text-left group"
                           >
                             <div className="flex items-start gap-3">
-                              <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center flex-shrink-0">
+                              <div className="w-10 h-10 rounded-full bg-sky-600 flex items-center justify-center flex-shrink-0">
                                 <span className="text-white font-bold text-lg">{idx + 1}</span>
                               </div>
                               <div className="flex-1">
-                                <h4 className="font-bold text-gray-900 text-base mb-1 group-hover:text-emerald-700 transition-colors">
+                                <h4 className="font-bold text-gray-900 text-base mb-1 group-hover:text-sky-700 transition-colors">
                                   {repo.displayName}
                                 </h4>
                                 <p className="text-xs text-gray-600 truncate">
