@@ -43,8 +43,11 @@ export function normalizeRatings(measures: SonarMeasure): NormalizedAnalysis['ra
 
 /**
  * Categorize issues by severity
+ * NOTE: Truncated to avoid exceeding OpenAI Assistant API's 512KB message limit
  */
 export function categorizeIssues(issues: SonarIssue[]): NormalizedAnalysis['issues'] {
+  const MAX_ISSUES_PER_CATEGORY = 10; // Limit to prevent 512KB OpenAI API limit
+
   const categorized = {
     critical: [] as SonarIssue[],
     high: [] as SonarIssue[],
@@ -64,7 +67,13 @@ export function categorizeIssues(issues: SonarIssue[]): NormalizedAnalysis['issu
     }
   });
 
-  return categorized;
+  // Truncate each category to avoid exceeding OpenAI's message size limits
+  return {
+    critical: categorized.critical.slice(0, MAX_ISSUES_PER_CATEGORY),
+    high: categorized.high.slice(0, MAX_ISSUES_PER_CATEGORY),
+    medium: categorized.medium.slice(0, MAX_ISSUES_PER_CATEGORY),
+    low: categorized.low.slice(0, MAX_ISSUES_PER_CATEGORY)
+  };
 }
 
 /**
