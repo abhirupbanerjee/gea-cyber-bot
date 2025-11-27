@@ -8,6 +8,14 @@
       "configured": true,
       "lastSync": "2025-11-20T10:00:00Z"
     },
+        {
+      "githubUrl": "https://github.com/abhirupbanerjee/TTserviceplatform.git",
+      "sonarProjectKey": "abhirupbanerjee_TTserviceplatform",
+      "displayName": "TT Service Platorm Demo",
+      "branch": "main",
+      "configured": true,
+      "lastSync": "2025-11-20T10:00:00Z"
+    },
     {
       "githubUrl": "https://github.com/abhirupbanerjee/cmb.git",
       "sonarProjectKey": "abhirupbanerjee_cmb",
