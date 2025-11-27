@@ -15,6 +15,14 @@
       "branch": "main",
       "configured": true,
       "lastSync": "2025-11-20T10:00:00Z"
+    },
+    {
+      "githubUrl": "https://github.com/abhirupbanerjee/gea-ai-assistant.git",
+      "sonarProjectKey": "abhirupbanerjee_gea-ai-assistant",
+      "displayName": "GEA AI Assistant",
+      "branch": "main",
+      "configured": true,
+      "lastSync": "2025-11-20T10:00:00Z"
     }
   ]
 }
