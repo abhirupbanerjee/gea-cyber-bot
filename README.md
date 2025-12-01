@@ -1,32 +1,18 @@
-# GEA Cyber Bot - AI Code Review Assistant
+# GEA Cyber Bot
 
-An AI-powered chat assistant integrated with SonarCloud for comprehensive code quality analysis and security reviews.
+AI-powered code quality assistant integrated with SonarCloud for comprehensive code analysis and security reviews.
 
 ## Features
 
-- 💬 Interactive chat interface powered by OpenAI Assistants API
-- 🔍 Code quality analysis using SonarCloud integration
-- 🐛 Automated bug and vulnerability detection
-- 📊 Detailed metrics and recommendations
-- 🔒 Security hotspot identification
-- ⚡ Real-time analysis through GitHub URL input
+- Interactive chat interface powered by OpenAI Assistants API
+- Code quality analysis using SonarCloud integration
+- Automated bug and vulnerability detection
+- Security hotspot identification
+- Actionable recommendations
 
----
+## Quick Start
 
-## Prerequisites
-
-Before you begin, ensure you have the following:
-
-1. **Node.js 18+** - [Download here](https://nodejs.org/)
-2. **OpenAI API Account** - [Sign up](https://platform.openai.com/)
-3. **SonarCloud Account** - [Sign up](https://sonarcloud.io/)
-4. **Vercel Account** (for deployment) - [Sign up](https://vercel.com/)
-
----
-
-## Setup Instructions
-
-### 1. Clone the Repository
+### 1. Install Dependencies
 
 ```bash
 git clone https://github.com/yourusername/gea-cyber-bot.git
@@ -34,127 +20,40 @@ cd gea-cyber-bot
 npm install
 ```
 
-### 2. Configure OpenAI Assistant
+### 2. Configure Environment
 
-1. Go to [OpenAI Platform](https://platform.openai.com/assistants)
-2. Create a new Assistant
-3. **Add the following functions** from `app/lib/openai/function-definitions.ts`:
-
-**Function 1: validate_github_repo**
-```json
-{
-  "name": "validate_github_repo",
-  "description": "Validates if a GitHub repository URL is configured in SonarCloud for analysis. Call this first when user provides a GitHub URL.",
-  "strict": false,
-  "parameters": {
-    "type": "object",
-    "properties": {
-      "github_url": {
-        "type": "string",
-        "description": "Full GitHub repository URL (e.g., https://github.com/owner/repo)"
-      }
-    },
-    "required": ["github_url"]
-  }
-}
+```bash
+cp .env.example .env.local
 ```
 
-**Function 2: get_code_analysis**
-```json
-{
-  "name": "get_code_analysis",
-  "description": "Retrieves comprehensive code quality analysis from SonarCloud including bugs, vulnerabilities, code smells, test coverage, and actionable recommendations. Only call after validating the repository.",
-  "strict": false,
-  "parameters": {
-    "type": "object",
-    "properties": {
-      "github_url": {
-        "type": "string",
-        "description": "Full GitHub repository URL that was previously validated (e.g., https://github.com/owner/repo)"
-      },
-      "include_issues": {
-        "type": "boolean",
-        "description": "Include detailed list of issues in the analysis (defaults to true)"
-      }
-    },
-    "required": ["github_url"]
-  }
-}
+Edit `.env.local`:
+
+```bash
+# OpenAI
+OPENAI_API_KEY=sk-...
+OPENAI_ASSISTANT_ID=asst_...
+OPENAI_ORGANIZATION=org-...
+
+# SonarCloud
+SONARCLOUD_TOKEN=...
+SONARCLOUD_ORGANIZATION=...
 ```
 
-4. **Add the system prompt** (Instructions field):
+### 3. Configure OpenAI Assistant
 
-```
-You are a technical code review assistant that helps developers understand their code quality using SonarCloud static analysis.
+See [docs/openai-setup.md](docs/openai-setup.md) for detailed instructions.
 
-When user provides a GitHub URL:
-1. First call validate_github_repo(github_url) to check if it's configured
-2. If valid, call get_code_analysis(github_url) to get full analysis
-3. If invalid, explain they need to configure it in SonarCloud first
+### 4. Add Repositories
 
-When presenting analysis results:
-- Start with executive summary (overall health rating)
-- Highlight critical issues (bugs, vulnerabilities) first
-- Explain key metrics in simple terms
-- Provide actionable recommendations
-
-Report Structure:
-# Code Quality Report: [Repo Name]
-
-## 📊 Overview
-- Lines of Code: [number]
-- Overall Maintainability: [A-E rating]
-- Technical Debt: [X hours/days]
-
-## 🚨 Critical Issues
-[List bugs and vulnerabilities with severity]
-
-## 📈 Quality Metrics
-- Code Coverage: [%]
-- Code Duplication: [%]
-- Code Smells: [number]
-
-## 💡 Recommendations
-1. [Prioritized action items]
-
-Important Rules:
-- ALWAYS validate repository before requesting analysis
-- NEVER make up data - only use function call results
-- Focus on actionable insights, not just numbers
-```
-
-5. Copy the **Assistant ID**
-
-### 3. Configure SonarCloud
-
-1. Go to [SonarCloud](https://sonarcloud.io)
-2. Log in with your GitHub account
-3. **Import your repositories:**
-   - Click "+" → "Analyze new project"
-   - Select repositories to analyze
-   - Enable "Automatic Analysis" or configure CI-based analysis
-4. **Get your project keys:**
-   - Go to each project → Project Information
-   - Copy the "Project Key" (e.g., `owner_repository`)
-5. **Generate Access Token:**
-   - Go to My Account → Security
-   - Generate new token with "Browse" permission
-   - Copy the token value
-6. **Get Organization Key:**
-   - Go to your organization page
-   - Copy the key from the URL: `https://sonarcloud.io/organizations/{YOUR_ORG_KEY}`
-
-### 4. Configure Repository List
-
-Edit `app/config/sonar-repos.json` to add your repositories:
+Edit `public/config/sonar-repos.json` (or `app/config/sonar-repos.json` for local dev):
 
 ```json
 {
   "repositories": [
     {
-      "githubUrl": "https://github.com/yourusername/your-repo",
-      "sonarProjectKey": "yourusername_your-repo",
-      "displayName": "Your Repository Name",
+      "githubUrl": "https://github.com/owner/repo",
+      "sonarProjectKey": "owner_repo",
+      "displayName": "My Repository",
       "branch": "main",
       "configured": true,
       "lastSync": "2025-11-20T00:00:00Z"
@@ -163,81 +62,60 @@ Edit `app/config/sonar-repos.json` to add your repositories:
 }
 ```
 
-### 5. Set Environment Variables
+See [docs/how-to-add-repository.md](docs/how-to-add-repository.md) for details.
 
-Create `.env.local` file:
-
-```bash
-cp .env.example .env.local
-```
-
-Edit `.env.local` and add your credentials:
+### 5. Run
 
 ```bash
-# OpenAI Configuration
-OPENAI_API_KEY=sk-...
-OPENAI_ASSISTANT_ID=asst_...
-OPENAI_ORGANIZATION=org-...
-
-# SonarCloud Configuration
-SONARCLOUD_TOKEN=your_sonarcloud_token_here
-SONARCLOUD_ORGANIZATION=your_sonarcloud_org_key
-```
-
----
-
-## Local Development
-
-```bash
-# Run development server
 npm run dev
-
-# Open browser at http://localhost:3000
+# Open http://localhost:3000
 ```
 
-**Test the integration:**
-1. Paste a GitHub URL from your configured repositories
-2. The bot will validate and fetch analysis
-3. Review the generated code quality report
+## Deployment
 
----
+### Vercel
 
-## Deployment to Vercel
+1. Push to GitHub
+2. Import project in [Vercel Dashboard](https://vercel.com/dashboard)
+3. Add environment variables
+4. Deploy
 
-1. Push your code to GitHub:
-```bash
-git add .
-git commit -m "Add SonarCloud integration"
-git push origin main
-```
+**Important:** For production, place `sonar-repos.json` in `public/config/`.
 
-2. Go to [Vercel Dashboard](https://vercel.com/dashboard)
-3. Click "Add New" → "Project"
-4. Import your GitHub repository
-5. **Add Environment Variables:**
-   - `OPENAI_API_KEY`
-   - `OPENAI_ASSISTANT_ID`
-   - `OPENAI_ORGANIZATION`
-   - `SONARCLOUD_TOKEN`
-   - `SONARCLOUD_ORGANIZATION`
-6. Click "Deploy"
+## Documentation
 
----
+| Document | Description |
+|----------|-------------|
+| [openai-setup.md](docs/openai-setup.md) | OpenAI Assistant configuration |
+| [how-to-add-repository.md](docs/how-to-add-repository.md) | Repository setup guide |
+| [implementation-summary.md](docs/implementation-summary.md) | Architecture overview |
+| [cyber-bot-capabilities.md](docs/cyber-bot-capabilities.md) | Bot capabilities reference |
+| [openai-assistant-instructions.md](docs/openai-assistant-instructions.md) | Assistant prompt templates |
 
 ## Troubleshooting
 
-### "Repository not configured" Error
-- Verify the GitHub URL is in `app/config/sonar-repos.json`
-- Ensure the URL matches exactly
-- Check that the repository is imported in SonarCloud
+### "Repository not configured"
+- Verify URL in `sonar-repos.json`
+- Check URL matches exactly (including `.git` suffix if present)
 
-### "Authentication failed" Error
-- Regenerate your SonarCloud token
-- Update `SONARCLOUD_TOKEN` in environment variables
+### "Authentication failed"
+- Regenerate SonarCloud token
+- Update `SONARCLOUD_TOKEN` environment variable
 - Redeploy if on Vercel
 
----
+### Assistant not calling functions
+- Verify functions are added in OpenAI dashboard
+- Check function names match exactly
+- See [docs/openai-setup.md](docs/openai-setup.md#troubleshooting)
+
+## Tech Stack
+
+- Next.js 15
+- React 19
+- TypeScript
+- OpenAI Assistants API
+- SonarCloud API
 
 ## License
 
-MIT License - see LICENSE file for details.
+MIT

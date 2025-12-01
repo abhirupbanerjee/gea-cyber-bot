@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import { motion } from "framer-motion";
 import remarkGfm from "remark-gfm";
-import { User, Bot, Copy, Check, ExternalLink, Send, Trash2, ClipboardCopy, Shield } from "lucide-react";
+import { User, Bot, Copy, Check, ExternalLink, Send, Trash2, ClipboardCopy, Shield, HelpCircle, Code, Globe } from "lucide-react";
 
 // Define Message type
 interface Message {
@@ -28,6 +28,7 @@ const ChatApp = () => {
   const [availableRepos, setAvailableRepos] = useState<Array<{githubUrl: string; displayName: string}>>([]);
   const [reposLoaded, setReposLoaded] = useState(false);
   const [reposError, setReposError] = useState<string | null>(null);
+  const [welcomeView, setWelcomeView] = useState<'main' | 'repos' | 'performance'>('main');
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Fetch available repositories from config
@@ -166,6 +167,94 @@ const ChatApp = () => {
       }
 
       // Add assistant response to messages
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: data.reply || "No response received",
+          timestamp: new Date().toLocaleString()
+        },
+      ]);
+
+    } catch (error: any) {
+      console.error("Error:", error);
+
+      let errorMessage = "Unable to reach assistant.";
+
+      if (error.message) {
+        errorMessage = error.message;
+      }
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `Error: ${errorMessage}`,
+          timestamp: new Date().toLocaleString(),
+        },
+      ]);
+    } finally {
+      setTyping(false);
+      setLoading(false);
+      setActiveRun(false);
+    }
+  };
+
+  // Handle security analysis request - shows display name to user but sends URL to backend
+  const handleSecurityAnalysis = async (displayName: string, githubUrl: string) => {
+    if (activeRun) return;
+
+    // Hide welcome screen
+    setShowWelcome(false);
+    setWelcomeView('main');
+
+    setActiveRun(true);
+    setLoading(true);
+
+    // Show friendly message to user (without the URL)
+    const userMessage = {
+      role: "user",
+      content: `Analyze the security of ${displayName}`,
+      timestamp: new Date().toLocaleString(),
+    };
+    setMessages((prev) => [...prev, userMessage]);
+
+    try {
+      setTyping(true);
+
+      // Send actual URL to backend for processing
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: `Analyze the security of ${githubUrl}`,
+          threadId: threadId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const responseText = await response.text();
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Failed to parse JSON response:', responseText);
+        throw new Error('Invalid JSON response from server');
+      }
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      if (data.threadId && data.threadId !== threadId) {
+        setThreadId(data.threadId);
+      }
+
       setMessages((prev) => [
         ...prev,
         {
@@ -346,85 +435,214 @@ const ChatApp = () => {
                   <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
                     Welcome to GEA Cyber Bot
                   </h2>
-                  <p className="text-gray-600 text-lg mb-6">
-                    I'm your AI-powered assistant for code quality and security analysis
+                  <p className="text-gray-600 text-lg mb-2">
+                    Your AI-powered assistant for code quality and website performance analysis
                   </p>
                 </div>
 
-                {/* Quick Actions */}
-                <div className="w-full max-w-2xl mb-8">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">
-                    Quick Actions
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <button
-                      onClick={() => {
-                        setInput("What can the Cyber Bot do?");
-                        setShowWelcome(false);
-                      }}
-                      className="bg-gray-50 border border-gray-300 rounded-lg p-4 shadow-sm hover:shadow-md hover:bg-gray-100 transition-all text-left group"
-                    >
-                      <p className="text-gray-700 font-medium group-hover:text-gray-900">
-                        📖 What can the Cyber Bot do?
-                      </p>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setInput("How do I add a new repository?");
-                        setShowWelcome(false);
-                      }}
-                      className="bg-gray-50 border border-gray-300 rounded-lg p-4 shadow-sm hover:shadow-md hover:bg-gray-100 transition-all text-left group"
-                    >
-                      <p className="text-gray-700 font-medium group-hover:text-gray-900">
-                        ➕ How do I add a new repository?
-                      </p>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Repository Cards */}
-                {reposLoaded && !reposError && availableRepos.length > 0 && (
-                  <div className="w-full max-w-3xl mb-8">
+                {/* Main View - Three Buttons */}
+                {welcomeView === 'main' && (
+                  <div className="w-full max-w-2xl mb-8">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">
-                      Available Repositories ({availableRepos.length})
+                      What would you like to do?
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {availableRepos.map((repo, idx) => {
-                        // Remove "https://github.com/abhirupbanerjee/" from URL display
-                        const cleanUrl = repo.githubUrl.replace('https://github.com/abhirupbanerjee/', '');
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      {/* How-To Button */}
+                      <button
+                        onClick={() => {
+                          setInput("What can the Cyber Bot do? Explain your capabilities for code analysis and website performance testing.");
+                          setShowWelcome(false);
+                          setTimeout(() => sendMessage(), 100);
+                        }}
+                        className="bg-purple-50 border-2 border-purple-200 rounded-xl p-5 shadow-sm hover:shadow-lg hover:bg-purple-100 hover:border-purple-300 transition-all group"
+                      >
+                        <div className="flex flex-col items-center text-center">
+                          <div className="w-14 h-14 rounded-full bg-purple-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                            <HelpCircle className="w-7 h-7 text-white" />
+                          </div>
+                          <h4 className="font-bold text-gray-900 text-base mb-1">How-To Guide</h4>
+                          <p className="text-xs text-gray-600">
+                            Bot capabilities & setup
+                          </p>
+                        </div>
+                      </button>
 
-                        return (
-                          <button
-                            key={idx}
-                            onClick={() => handleRepoLinkClick(repo.githubUrl)}
-                            className="bg-sky-100 border border-gray-300 rounded-lg p-4 shadow-sm hover:shadow-md hover:bg-sky-200 transition-all text-left group"
-                          >
-                            <div className="flex items-start gap-3">
-                              <div className="w-10 h-10 rounded-full bg-sky-600 flex items-center justify-center flex-shrink-0">
-                                <span className="text-white font-bold text-lg">{idx + 1}</span>
-                              </div>
-                              <div className="flex-1">
-                                <h4 className="font-bold text-gray-900 text-base mb-1 group-hover:text-sky-700 transition-colors">
-                                  {repo.displayName}
-                                </h4>
-                                <p className="text-xs text-gray-600 truncate">
-                                  {cleanUrl}
-                                </p>
-                              </div>
-                            </div>
-                          </button>
-                        );
-                      })}
+                      {/* Code Analysis Button */}
+                      <button
+                        onClick={() => setWelcomeView('repos')}
+                        className="bg-sky-50 border-2 border-sky-200 rounded-xl p-5 shadow-sm hover:shadow-lg hover:bg-sky-100 hover:border-sky-300 transition-all group"
+                      >
+                        <div className="flex flex-col items-center text-center">
+                          <div className="w-14 h-14 rounded-full bg-sky-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                            <Code className="w-7 h-7 text-white" />
+                          </div>
+                          <h4 className="font-bold text-gray-900 text-base mb-1">Code Analysis</h4>
+                          <p className="text-xs text-gray-600">
+                            Security & quality review
+                          </p>
+                        </div>
+                      </button>
+
+                      {/* Website Review Button */}
+                      <button
+                        onClick={() => setWelcomeView('performance')}
+                        className="bg-green-50 border-2 border-green-200 rounded-xl p-5 shadow-sm hover:shadow-lg hover:bg-green-100 hover:border-green-300 transition-all group"
+                      >
+                        <div className="flex flex-col items-center text-center">
+                          <div className="w-14 h-14 rounded-full bg-green-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                            <Globe className="w-7 h-7 text-white" />
+                          </div>
+                          <h4 className="font-bold text-gray-900 text-base mb-1">Website Review</h4>
+                          <p className="text-xs text-gray-600">
+                            Performance & Core Web Vitals
+                          </p>
+                        </div>
+                      </button>
                     </div>
                   </div>
                 )}
 
-                {/* Error Message */}
-                {reposError && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-w-2xl mb-6">
-                    <p className="text-red-800 text-sm">
-                      <strong>⚠️ Configuration Issue:</strong> {reposError}
-                    </p>
+                {/* Repository Selection View */}
+                {welcomeView === 'repos' && (
+                  <div className="w-full max-w-3xl mb-8">
+                    <div className="flex items-center justify-between mb-4">
+                      <button
+                        onClick={() => setWelcomeView('main')}
+                        className="text-gray-600 hover:text-gray-900 flex items-center gap-1 text-sm"
+                      >
+                        ← Back
+                      </button>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Select a Repository
+                      </h3>
+                      <div className="w-12"></div>
+                    </div>
+
+                    {reposLoaded && !reposError && availableRepos.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {availableRepos.map((repo, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => {
+                              // Send security analysis request with hidden URL
+                              // Display name shown to user, actual URL sent to backend
+                              handleSecurityAnalysis(repo.displayName, repo.githubUrl);
+                            }}
+                            className="bg-sky-50 border-2 border-sky-200 rounded-xl p-4 shadow-sm hover:shadow-lg hover:bg-sky-100 hover:border-sky-300 transition-all text-left group"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-sky-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                                <span className="text-white font-bold text-lg">{idx + 1}</span>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-bold text-gray-900 text-base group-hover:text-sky-700 transition-colors truncate">
+                                  {repo.displayName}
+                                </h4>
+                                <p className="text-xs text-gray-500">
+                                  Click to analyze
+                                </p>
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    ) : reposError ? (
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <p className="text-red-800 text-sm">
+                          <strong>⚠️ Configuration Issue:</strong> {reposError}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="text-center text-gray-500 py-8">
+                        Loading repositories...
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Performance Testing View */}
+                {welcomeView === 'performance' && (
+                  <div className="w-full max-w-xl mb-8">
+                    <div className="flex items-center justify-between mb-4">
+                      <button
+                        onClick={() => setWelcomeView('main')}
+                        className="text-gray-600 hover:text-gray-900 flex items-center gap-1 text-sm"
+                      >
+                        ← Back
+                      </button>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Website Performance Test
+                      </h3>
+                      <div className="w-12"></div>
+                    </div>
+
+                    <div className="bg-green-50 border-2 border-green-200 rounded-xl p-6">
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Website URL
+                        </label>
+                        <input
+                          type="url"
+                          placeholder="https://example.com"
+                          className="w-full border-2 border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 rounded-lg px-4 py-3 outline-none transition-all"
+                          id="perf-url-input"
+                        />
+                      </div>
+
+                      <div className="mb-6">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Device Mode
+                        </label>
+                        <div className="flex gap-3">
+                          <label className="flex-1">
+                            <input
+                              type="radio"
+                              name="device-mode"
+                              value="desktop"
+                              defaultChecked
+                              className="sr-only peer"
+                            />
+                            <div className="border-2 border-gray-300 peer-checked:border-green-500 peer-checked:bg-green-50 rounded-lg p-3 text-center cursor-pointer hover:bg-gray-50 transition-all">
+                              <span className="text-xl">🖥️</span>
+                              <p className="text-sm font-medium mt-1">Desktop</p>
+                            </div>
+                          </label>
+                          <label className="flex-1">
+                            <input
+                              type="radio"
+                              name="device-mode"
+                              value="mobile"
+                              className="sr-only peer"
+                            />
+                            <div className="border-2 border-gray-300 peer-checked:border-green-500 peer-checked:bg-green-50 rounded-lg p-3 text-center cursor-pointer hover:bg-gray-50 transition-all">
+                              <span className="text-xl">📱</span>
+                              <p className="text-sm font-medium mt-1">Mobile</p>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          const urlInput = document.getElementById('perf-url-input') as HTMLInputElement;
+                          const url = urlInput?.value?.trim();
+                          if (!url) {
+                            alert('Please enter a website URL');
+                            return;
+                          }
+                          const mobileRadio = document.querySelector('input[name="device-mode"][value="mobile"]') as HTMLInputElement;
+                          const mode = mobileRadio?.checked ? 'mobile' : 'desktop';
+                          setInput(`Analyze the performance of ${url} on ${mode}`);
+                          setShowWelcome(false);
+                          setWelcomeView('main');
+                          setTimeout(() => sendMessage(), 100);
+                        }}
+                        className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-all"
+                      >
+                        <Globe className="w-5 h-5" />
+                        Analyze Performance
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -628,7 +846,7 @@ const ChatApp = () => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !loading && sendMessage()}
-            placeholder="Type a message or paste a GitHub URL to analyze..."
+            placeholder="Type a message, paste a GitHub URL, or enter a website URL..."
             disabled={loading}
           />
           <button
@@ -666,6 +884,7 @@ const ChatApp = () => {
               setMessages([]);
               setThreadId(null);
               setShowWelcome(true);
+              setWelcomeView('main');
               localStorage.removeItem("threadId");
               localStorage.removeItem("chatHistory");
             }}

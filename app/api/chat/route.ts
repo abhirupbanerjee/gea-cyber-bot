@@ -173,6 +173,25 @@ export async function POST(request: NextRequest) {
                   output = await response.json();
 
                   console.log('[Function Call] get_code_analysis result:', output);
+                } else if (functionName === 'analyze_website_performance') {
+                  // Normalize PageSpeed parameters (snake_case to camelCase)
+                  const pagespeedArgs = {
+                    targetUrl: functionArgs.target_url,
+                    strategy: functionArgs.strategy || 'mobile'
+                  };
+
+                  // Import and call the pagespeed analyze route handler directly
+                  const { POST: analyzeHandler } = await import('@/app/api/pagespeed/analyze/route');
+
+                  // Create a mock NextRequest with the arguments
+                  const mockRequest = {
+                    json: async () => pagespeedArgs
+                  } as NextRequest;
+
+                  const response = await analyzeHandler(mockRequest);
+                  output = await response.json();
+
+                  console.log('[Function Call] analyze_website_performance result:', output);
                 } else {
                   output = { error: `Unknown function: ${functionName}` };
                 }
