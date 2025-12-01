@@ -1,14 +1,13 @@
 # GEA Cyber Bot
 
-AI-powered code quality assistant integrated with SonarCloud for comprehensive code analysis and security reviews.
+AI-powered assistant for code quality analysis (SonarCloud) and website performance testing (Google PageSpeed Insights).
 
 ## Features
 
 - Interactive chat interface powered by OpenAI Assistants API
-- Code quality analysis using SonarCloud integration
-- Automated bug and vulnerability detection
-- Security hotspot identification
-- Actionable recommendations
+- **Security Analysis** - Code quality analysis using SonarCloud (bugs, vulnerabilities, code smells, technical debt)
+- **Performance Testing** - Website performance analysis using Google PageSpeed Insights (Core Web Vitals, Lighthouse scores)
+- Actionable recommendations with prioritized findings
 
 ## Quick Start
 
@@ -37,15 +36,18 @@ OPENAI_ORGANIZATION=org-...
 # SonarCloud
 SONARCLOUD_TOKEN=...
 SONARCLOUD_ORGANIZATION=...
+
+# Google PageSpeed Insights (optional - works without key but recommended for higher rate limits)
+PAGESPEED_API_KEY=...
 ```
 
 ### 3. Configure OpenAI Assistant
 
 See [docs/openai-setup.md](docs/openai-setup.md) for detailed instructions.
 
-### 4. Add Repositories
+### 4. Add Repositories (for Security Analysis)
 
-Edit `public/config/sonar-repos.json` (or `app/config/sonar-repos.json` for local dev):
+Edit `public/config/sonar-repos.json`:
 
 ```json
 {
@@ -71,6 +73,25 @@ npm run dev
 # Open http://localhost:3000
 ```
 
+## Usage
+
+The bot provides three main options from the welcome screen:
+
+1. **How-To Guide** - Learn about bot capabilities
+2. **Code Analysis** - Select a configured repository for security analysis
+3. **Website Review** - Enter any URL for performance testing
+
+### Security Analysis (SonarCloud)
+- Analyzes GitHub repositories for bugs, vulnerabilities, code smells
+- Provides maintainability ratings and technical debt estimates
+- Requires repository to be configured in SonarCloud
+
+### Performance Testing (PageSpeed Insights)
+- Tests any public website for Core Web Vitals (LCP, FID, CLS, FCP, TTFB)
+- Returns Lighthouse scores (Performance, Accessibility, Best Practices, SEO)
+- Supports both mobile and desktop testing
+- No configuration needed - works with any public URL
+
 ## Deployment
 
 ### Vercel
@@ -90,7 +111,6 @@ npm run dev
 | [how-to-add-repository.md](docs/how-to-add-repository.md) | Repository setup guide |
 | [implementation-summary.md](docs/implementation-summary.md) | Architecture overview |
 | [cyber-bot-capabilities.md](docs/cyber-bot-capabilities.md) | Bot capabilities reference |
-| [openai-assistant-instructions.md](docs/openai-assistant-instructions.md) | Assistant prompt templates |
 
 ## Troubleshooting
 
@@ -102,6 +122,11 @@ npm run dev
 - Regenerate SonarCloud token
 - Update `SONARCLOUD_TOKEN` environment variable
 - Redeploy if on Vercel
+
+### PageSpeed analysis fails
+- Verify URL is publicly accessible
+- Check URL format includes protocol (https://)
+- Some sites may block automated requests
 
 ### Assistant not calling functions
 - Verify functions are added in OpenAI dashboard
@@ -115,6 +140,7 @@ npm run dev
 - TypeScript
 - OpenAI Assistants API
 - SonarCloud API
+- Google PageSpeed Insights API
 
 ## License
 
