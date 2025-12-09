@@ -116,3 +116,67 @@ function normalizeGithubUrl(url: string): string {
 export function clearCache(): void {
   cachedRepos = null;
 }
+
+/**
+ * Infer GitHub URL from SonarCloud project key
+ * Convention: owner_repo -> https://github.com/owner/repo
+ */
+function inferGitHubUrl(projectKey: string): string {
+  const parts = projectKey.split('_');
+  if (parts.length >= 2) {
+    return `https://github.com/${parts[0]}/${parts.slice(1).join('_')}`;
+  }
+  return `https://github.com/${projectKey}`;
+}
+
+/**
+ * Load projects dynamically from SonarCloud API
+ * Falls back to static config if API fails or env vars missing
+ */
+export async function loadProjectsFromAPI(): Promise<ConfiguredRepo[]> {
+  const token = process.env.SONARCLOUD_TOKEN;
+  const organization = process.env.SONARCLOUD_ORGANIZATION;
+
+  if (!token || !organization) {
+    console.warn('[Config] Missing env vars, falling back to static config');
+    return loadConfiguredRepos();
+  }
+
+  try {
+    const url = new URL('https://sonarcloud.io/api/projects/search');
+    url.searchParams.append('organization', organization);
+    url.searchParams.append('ps', '100');
+
+    const response = await fetch(url.toString(), {
+      headers: { 'Authorization': `Bearer ${token}` },
+      next: { revalidate: 300 } // Cache for 5 minutes
+    });
+
+    if (!response.ok) {
+      throw new Error(`SonarCloud API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log(`[Config] Fetched ${data.components?.length || 0} projects from SonarCloud API`);
+
+    return (data.components || []).map((project: any) => ({
+      githubUrl: inferGitHubUrl(project.key),
+      sonarProjectKey: project.key,
+      displayName: project.name,
+      configured: true,
+      branch: 'main',
+      lastSync: project.lastAnalysisDate
+    }));
+  } catch (error) {
+    console.error('[Config] API fetch failed, falling back to static config:', error);
+    return loadConfiguredRepos();
+  }
+}
+
+/**
+ * Find a repository by SonarCloud project key
+ */
+export function findRepoByProjectKey(projectKey: string): ConfiguredRepo | null {
+  const repos = loadConfiguredRepos();
+  return repos.find(repo => repo.sonarProjectKey === projectKey) || null;
+}

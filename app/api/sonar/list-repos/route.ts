@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadConfiguredRepos } from '@/app/lib/sonarcloud/config';
+import { loadProjectsFromAPI } from '@/app/lib/sonarcloud/config';
 
 export async function GET(request: NextRequest) {
   try {
-    const repos = loadConfiguredRepos();
+    const repos = await loadProjectsFromAPI();
 
     // Return only the necessary info for display
     const repoList = repos.map(repo => ({
       githubUrl: repo.githubUrl,
       displayName: repo.displayName,
+      sonarProjectKey: repo.sonarProjectKey,
       configured: repo.configured
     }));
 
