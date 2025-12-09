@@ -9,6 +9,80 @@ AI-powered assistant for code quality analysis (SonarCloud) and website performa
 - **Performance Testing** - Website performance analysis using Google PageSpeed Insights (Core Web Vitals, Lighthouse scores)
 - Actionable recommendations with prioritized findings
 
+---
+
+## Solution Architecture
+
+### High-Level Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     Frontend (React/Next.js)                     │
+│                         app/page.tsx                             │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    API Layer (Next.js Routes)                    │
+│  ┌─────────────┐  ┌─────────────────┐  ┌─────────────────────┐  │
+│  │ /api/chat   │  │ /api/sonar/*    │  │ /api/pagespeed/*    │  │
+│  │ Orchestrator│  │ Security APIs   │  │ Performance API     │  │
+│  └─────────────┘  └─────────────────┘  └─────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                       External Services                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐    │
+│  │   OpenAI     │  │  SonarCloud  │  │  Google PageSpeed  │    │
+│  │ Assistants   │  │     API      │  │   Insights API     │    │
+│  └──────────────┘  └──────────────┘  └────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Function Call Flow
+
+```
+User Message → /api/chat → OpenAI Assistant
+                              │
+              ┌───────────────┼───────────────┐
+              ▼               ▼               ▼
+     validate_github_repo  get_code_analysis  analyze_website_performance
+              │               │               │
+              ▼               ▼               ▼
+     /api/sonar/         /api/sonar/     /api/pagespeed/
+     validate-repo       get-analysis    analyze
+              │               │               │
+              └───────────────┼───────────────┘
+                              ▼
+              Results submitted to Assistant
+                              │
+                              ▼
+              Formatted response to User
+```
+
+### Key Components
+
+| Component | Path | Purpose |
+|-----------|------|---------|
+| Chat Orchestrator | `app/api/chat/route.ts` | Thread management, function routing |
+| Repo Validation | `app/api/sonar/validate-repo/` | Check SonarCloud configuration |
+| Code Analysis | `app/api/sonar/get-analysis/` | Fetch security metrics |
+| Performance Test | `app/api/pagespeed/analyze/` | Run Lighthouse tests |
+| SonarCloud Client | `app/lib/sonarcloud/` | API wrapper & data normalization |
+| PageSpeed Client | `app/lib/pagespeed/` | API wrapper |
+| Function Definitions | `app/lib/openai/` | OpenAI function schemas |
+
+### Function Specifications
+
+| Function | Trigger | Parameters |
+|----------|---------|------------|
+| `validate_github_repo` | GitHub URL provided | `github_url` |
+| `get_code_analysis` | After validation passes | `github_url`, `include_issues` |
+| `analyze_website_performance` | Any URL + performance intent | `target_url`, `strategy` |
+
+---
+
 ## Quick Start
 
 ### 1. Install Dependencies
@@ -73,6 +147,8 @@ npm run dev
 # Open http://localhost:3000
 ```
 
+---
+
 ## Usage
 
 The bot provides three main options from the welcome screen:
@@ -92,6 +168,33 @@ The bot provides three main options from the welcome screen:
 - Supports both mobile and desktop testing
 - No configuration needed - works with any public URL
 
+---
+
+## Project Structure
+
+```
+gea-cyber-bot/
+├── app/
+│   ├── api/
+│   │   ├── chat/route.ts           # Main orchestrator
+│   │   ├── sonar/
+│   │   │   ├── validate-repo/      # Repo validation
+│   │   │   ├── get-analysis/       # Full analysis
+│   │   │   └── list-repos/         # List configured repos
+│   │   └── pagespeed/
+│   │       └── analyze/            # Performance testing
+│   ├── lib/
+│   │   ├── sonarcloud/             # SonarCloud client
+│   │   ├── pagespeed/              # PageSpeed client
+│   │   └── openai/                 # Function definitions
+│   └── page.tsx                    # Main UI
+├── public/config/
+│   └── sonar-repos.json            # Repository whitelist
+└── docs/                           # Documentation
+```
+
+---
+
 ## Deployment
 
 ### Vercel
@@ -103,6 +206,8 @@ The bot provides three main options from the welcome screen:
 
 **Important:** For production, place `sonar-repos.json` in `public/config/`.
 
+---
+
 ## Documentation
 
 | Document | Description |
@@ -111,6 +216,8 @@ The bot provides three main options from the welcome screen:
 | [how-to-add-repository.md](docs/how-to-add-repository.md) | Repository setup guide |
 | [implementation-summary.md](docs/implementation-summary.md) | Architecture overview |
 | [cyber-bot-capabilities.md](docs/cyber-bot-capabilities.md) | Bot capabilities reference |
+
+---
 
 ## Troubleshooting
 
@@ -132,6 +239,8 @@ The bot provides three main options from the welcome screen:
 - Verify functions are added in OpenAI dashboard
 - Check function names match exactly
 - See [docs/openai-setup.md](docs/openai-setup.md#troubleshooting)
+
+---
 
 ## Tech Stack
 
