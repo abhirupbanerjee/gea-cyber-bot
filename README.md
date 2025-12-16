@@ -88,7 +88,7 @@ User Message → /api/chat → OpenAI Assistant
 ### 1. Install Dependencies
 
 ```bash
-git clone https://github.com/yourusername/gea-cyber-bot.git
+git clone <your-repository-url>
 cd gea-cyber-bot
 npm install
 ```
@@ -244,9 +244,10 @@ gea-cyber-bot/
 
 ## Tech Stack
 
-- Next.js 15
+- Next.js 16
 - React 19
-- TypeScript
+- TypeScript 5
+- Tailwind CSS 4
 - OpenAI Assistants API
 - SonarCloud API
 - Google PageSpeed Insights API

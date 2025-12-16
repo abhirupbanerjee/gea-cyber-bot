@@ -1,0 +1,598 @@
+# GEA Cyber Bot - OpenAI Assistant API Specifications
+# Version: 1.0
+# Date: December 2025
+
+openapi: 3.0.3
+info:
+  title: GEA Cyber Bot OpenAI Functions API
+  description: |
+    API specifications for OpenAI Assistant function calling integration.
+    These functions are registered with the OpenAI Assistant and called
+    during conversation to fetch security and performance analysis data.
+  version: 1.0.0
+  contact:
+    name: GEA Team
+
+servers:
+  - url: /api
+    description: Next.js API Routes
+
+# ============================================================================
+# OpenAI Assistant Configuration
+# ============================================================================
+x-openai-assistant:
+  model: gpt-4o
+  name: GEA Cyber Bot
+  description: AI-powered assistant for code security analysis and website performance testing
+  instructions: |
+    You are GEA Cyber Bot, a senior code review and performance analysis assistant.
+
+    ## Capabilities
+    1. Security Analysis (SonarCloud) - Analyzes GitHub repos for bugs, vulnerabilities, code smells
+    2. Performance Testing (PageSpeed Insights) - Tests websites for Core Web Vitals and Lighthouse scores
+
+    ## Workflow
+    - When user provides GitHub URL with "security" context: Run validate_github_repo then get_code_analysis
+    - When user provides URL with "performance" context: Run analyze_website_performance (default to desktop)
+    - If unclear, ask which analysis they want
+
+    ## Response Rules
+    - Never invent metrics - only use data from function results
+    - Explain technical terms (LCP, FID, CLS, TTFB, etc.)
+    - Be actionable - explain what metrics mean and what to do about them
+    - Use concise markdown with bullet lists and tables
+
+# ============================================================================
+# Function Definitions (for OpenAI Dashboard)
+# ============================================================================
+x-openai-functions:
+  - name: validate_github_repo
+    description: |
+      Validates if a GitHub repository URL is configured in SonarCloud for analysis.
+      Call this first when user provides a GitHub URL for security analysis.
+    parameters:
+      type: object
+      properties:
+        github_url:
+          type: string
+          description: Full GitHub repository URL (e.g., https://github.com/owner/repo)
+      required:
+        - github_url
+
+  - name: get_code_analysis
+    description: |
+      Retrieves comprehensive code quality analysis from SonarCloud including bugs,
+      vulnerabilities, code smells, test coverage, and actionable recommendations.
+      Only call after validating the repository with validate_github_repo.
+    parameters:
+      type: object
+      properties:
+        github_url:
+          type: string
+          description: Full GitHub repository URL that was previously validated (e.g., https://github.com/owner/repo)
+        include_issues:
+          type: boolean
+          description: Include detailed list of issues in the analysis (defaults to true)
+      required:
+        - github_url
+
+  - name: analyze_website_performance
+    strict: true
+    description: |
+      Analyzes a website's performance using Google PageSpeed Insights. Returns
+      Lighthouse scores (performance, accessibility, SEO, best practices), Core Web
+      Vitals (LCP, FID, CLS, FCP, TTFB), and specific recommendations for improvement.
+      Use this when users ask about website speed, performance, or Core Web Vitals.
+    parameters:
+      type: object
+      properties:
+        target_url:
+          type: string
+          description: The full URL of the website to analyze (e.g., https://example.com)
+        strategy:
+          type: string
+          enum:
+            - mobile
+            - desktop
+          description: Test as mobile or desktop device. Use 'mobile' for mobile device simulation, 'desktop' for desktop simulation.
+      required:
+        - target_url
+        - strategy
+      additionalProperties: false
+
+# ============================================================================
+# API Paths
+# ============================================================================
+paths:
+  /chat:
+    post:
+      summary: Main Chat Orchestrator
+      description: |
+        Central endpoint that handles all chat interactions. Manages OpenAI threads,
+        routes function calls, and returns assistant responses.
+      operationId: chat
+      tags:
+        - Chat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+      responses:
+        '200':
+          description: Successful response from assistant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sonar/validate-repo:
+    post:
+      summary: Validate GitHub Repository
+      description: |
+        Checks if a GitHub repository URL is configured in the SonarCloud whitelist
+        and ready for analysis.
+      operationId: validateRepo
+      tags:
+        - SonarCloud
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidateRepoRequest'
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidateRepoResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sonar/get-analysis:
+    post:
+      summary: Get Code Analysis
+      description: |
+        Retrieves comprehensive code quality analysis from SonarCloud for a
+        validated repository.
+      operationId: getAnalysis
+      tags:
+        - SonarCloud
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetAnalysisRequest'
+      responses:
+        '200':
+          description: Analysis results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CodeAnalysisResponse'
+        '400':
+          description: Repository not configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sonar/list-repos:
+    get:
+      summary: List Configured Repositories
+      description: Returns list of all repositories configured for SonarCloud analysis.
+      operationId: listRepos
+      tags:
+        - SonarCloud
+      responses:
+        '200':
+          description: List of repositories
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListReposResponse'
+
+  /pagespeed/analyze:
+    post:
+      summary: Analyze Website Performance
+      description: |
+        Runs Google PageSpeed Insights analysis on a target URL and returns
+        Lighthouse scores and Core Web Vitals.
+      operationId: analyzePerformance
+      tags:
+        - PageSpeed
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PageSpeedRequest'
+      responses:
+        '200':
+          description: Performance analysis results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageSpeedResponse'
+        '400':
+          description: Invalid URL or request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+# ============================================================================
+# Components
+# ============================================================================
+components:
+  schemas:
+    # ---------------------------
+    # Chat Schemas
+    # ---------------------------
+    ChatRequest:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: User message content
+          example: "Analyze the security of https://github.com/owner/repo"
+        threadId:
+          type: string
+          description: Existing thread ID for conversation continuity
+          example: "thread_abc123"
+
+    ChatResponse:
+      type: object
+      properties:
+        reply:
+          type: string
+          description: Assistant response in markdown format
+        threadId:
+          type: string
+          description: Thread ID for subsequent messages
+
+    # ---------------------------
+    # SonarCloud Schemas
+    # ---------------------------
+    ValidateRepoRequest:
+      type: object
+      required:
+        - githubUrl
+      properties:
+        githubUrl:
+          type: string
+          description: Full GitHub repository URL
+          example: "https://github.com/owner/repo"
+
+    ValidateRepoResponse:
+      type: object
+      properties:
+        valid:
+          type: boolean
+          description: Whether repository is configured
+        projectKey:
+          type: string
+          description: SonarCloud project key
+        displayName:
+          type: string
+          description: Human-readable repository name
+        message:
+          type: string
+          description: Status message
+
+    GetAnalysisRequest:
+      type: object
+      required:
+        - githubUrl
+      properties:
+        githubUrl:
+          type: string
+          description: Validated GitHub repository URL
+        includeIssues:
+          type: boolean
+          description: Include detailed issues list
+          default: true
+
+    CodeAnalysisResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/NormalizedAnalysis'
+
+    NormalizedAnalysis:
+      type: object
+      properties:
+        repository:
+          type: object
+          properties:
+            githubUrl:
+              type: string
+            sonarProjectKey:
+              type: string
+            displayName:
+              type: string
+            lastAnalysisDate:
+              type: string
+              format: date-time
+        summary:
+          $ref: '#/components/schemas/AnalysisSummary'
+        ratings:
+          $ref: '#/components/schemas/QualityRatings'
+        issues:
+          $ref: '#/components/schemas/IssuesByPriority'
+        recommendations:
+          type: array
+          items:
+            type: string
+
+    AnalysisSummary:
+      type: object
+      properties:
+        bugs:
+          type: integer
+          description: Number of bugs detected
+        vulnerabilities:
+          type: integer
+          description: Number of security vulnerabilities
+        securityHotspots:
+          type: integer
+          description: Code requiring security review
+        codeSmells:
+          type: integer
+          description: Maintainability issues
+        coverage:
+          type: number
+          format: float
+          description: Test coverage percentage
+        duplication:
+          type: number
+          format: float
+          description: Code duplication percentage
+        linesOfCode:
+          type: integer
+          description: Non-comment lines of code
+        technicalDebtMinutes:
+          type: integer
+          description: Minutes to fix all issues
+
+    QualityRatings:
+      type: object
+      description: A-E scale ratings (A=best, E=worst)
+      properties:
+        reliability:
+          type: string
+          enum: [A, B, C, D, E]
+        security:
+          type: string
+          enum: [A, B, C, D, E]
+        maintainability:
+          type: string
+          enum: [A, B, C, D, E]
+
+    IssuesByPriority:
+      type: object
+      properties:
+        critical:
+          type: array
+          items:
+            $ref: '#/components/schemas/Issue'
+        high:
+          type: array
+          items:
+            $ref: '#/components/schemas/Issue'
+        medium:
+          type: array
+          items:
+            $ref: '#/components/schemas/Issue'
+        low:
+          type: array
+          items:
+            $ref: '#/components/schemas/Issue'
+
+    Issue:
+      type: object
+      properties:
+        key:
+          type: string
+        message:
+          type: string
+        severity:
+          type: string
+        component:
+          type: string
+        line:
+          type: integer
+        type:
+          type: string
+          enum: [BUG, VULNERABILITY, CODE_SMELL, SECURITY_HOTSPOT]
+
+    ListReposResponse:
+      type: object
+      properties:
+        repos:
+          type: array
+          items:
+            $ref: '#/components/schemas/Repository'
+
+    Repository:
+      type: object
+      properties:
+        githubUrl:
+          type: string
+        sonarProjectKey:
+          type: string
+        displayName:
+          type: string
+        branch:
+          type: string
+        configured:
+          type: boolean
+        lastSync:
+          type: string
+          format: date-time
+
+    # ---------------------------
+    # PageSpeed Schemas
+    # ---------------------------
+    PageSpeedRequest:
+      type: object
+      required:
+        - targetUrl
+        - strategy
+      properties:
+        targetUrl:
+          type: string
+          description: Full URL to analyze
+          example: "https://example.com"
+        strategy:
+          type: string
+          enum: [mobile, desktop]
+          description: Device simulation mode
+
+    PageSpeedResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/PageSpeedResult'
+
+    PageSpeedResult:
+      type: object
+      properties:
+        url:
+          type: string
+        fetchTime:
+          type: string
+          format: date-time
+        strategy:
+          type: string
+          enum: [mobile, desktop]
+        scores:
+          $ref: '#/components/schemas/LighthouseScores'
+        coreWebVitals:
+          $ref: '#/components/schemas/CoreWebVitals'
+        opportunities:
+          type: array
+          items:
+            $ref: '#/components/schemas/Opportunity'
+        diagnostics:
+          type: array
+          items:
+            $ref: '#/components/schemas/Diagnostic'
+
+    LighthouseScores:
+      type: object
+      description: Scores from 0-100 (90+ good, 50-89 needs improvement, <50 poor)
+      properties:
+        performance:
+          type: integer
+          minimum: 0
+          maximum: 100
+        accessibility:
+          type: integer
+          minimum: 0
+          maximum: 100
+        bestPractices:
+          type: integer
+          minimum: 0
+          maximum: 100
+        seo:
+          type: integer
+          minimum: 0
+          maximum: 100
+
+    CoreWebVitals:
+      type: object
+      properties:
+        lcp:
+          type: number
+          description: Largest Contentful Paint (milliseconds). Good < 2500ms
+        fid:
+          type: number
+          description: First Input Delay (milliseconds). Good < 100ms
+        cls:
+          type: number
+          description: Cumulative Layout Shift (score). Good < 0.1
+        fcp:
+          type: number
+          description: First Contentful Paint (milliseconds). Good < 1800ms
+        ttfb:
+          type: number
+          description: Time to First Byte (milliseconds). Good < 800ms
+
+    Opportunity:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        savings:
+          type: number
+          description: Potential time savings in milliseconds
+
+    Diagnostic:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        displayValue:
+          type: string
+
+    # ---------------------------
+    # Common Schemas
+    # ---------------------------
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        code:
+          type: string
+          description: Error code
+        details:
+          type: string
+          description: Additional error details
+
+# ============================================================================
+# Tags
+# ============================================================================
+tags:
+  - name: Chat
+    description: Main chat orchestration endpoint
+  - name: SonarCloud
+    description: Code security and quality analysis endpoints
+  - name: PageSpeed
+    description: Website performance analysis endpoints
